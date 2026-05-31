@@ -8,6 +8,7 @@ import (
 )
 
 type GameState struct {
+	mu      sync.Mutex
 	ID      string `json:"id"`
 	Board   *Board `json:"board"`
 	Turn    int    `json:"turn"`

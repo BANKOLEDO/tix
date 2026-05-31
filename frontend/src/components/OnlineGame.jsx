@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { P1, P2, EMPTY } from '../game'
 import PlayerShape from './PlayerShape'
 
+const P2_COLOR = '#d4a373'
+
 export default function OnlineGame({ size, winLen, player1, player2, onBack }) {
   const [gameId, setGameId] = useState(null)
   const [board, setBoard] = useState(null)
@@ -10,6 +12,7 @@ export default function OnlineGame({ size, winLen, player1, player2, onBack }) {
   const [draw, setDraw] = useState(false)
   const [myPlayer, setMyPlayer] = useState(null)
   const [joinId, setJoinId] = useState('')
+  const [joinName, setJoinName] = useState('')
   const [error, setError] = useState('')
   const api = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
@@ -54,7 +57,9 @@ export default function OnlineGame({ size, winLen, player1, player2, onBack }) {
     if (!joinId.trim()) return
     setError('')
     try {
-      const r = await fetch(`${api}/api/game/${joinId.trim()}`)
+      const params = new URLSearchParams()
+      if (joinName.trim()) params.set('name', joinName.trim())
+      const r = await fetch(`${api}/api/game/${joinId.trim()}?${params}`)
       if (!r.ok) { setError('game not found'); return }
       const data = await r.json()
       setGameId(data.id)
@@ -106,6 +111,11 @@ export default function OnlineGame({ size, winLen, player1, player2, onBack }) {
           <button className="btn btn-lg" onClick={createGame}>create game</button>
         </div>
         <div className="menu-divider"><span>or</span></div>
+        <div className="menu-section">
+          <label className="menu-label" style={{ color: P2_COLOR }}>your name</label>
+          <input className="inp" placeholder="anonymous" value={joinName}
+            onChange={e => setJoinName(e.target.value)} maxLength={16} />
+        </div>
         <div className="join-row">
           <input className="inp" placeholder="game id" value={joinId}
             onChange={e => setJoinId(e.target.value)} maxLength={12}
@@ -121,7 +131,7 @@ export default function OnlineGame({ size, winLen, player1, player2, onBack }) {
   const isMyTurn = turn === myPlayer
   const result = winner === myPlayer ? 'you win!'
     : draw ? 'draw'
-    : winner !== 0 ? 'you lose'
+    : winner ? 'you lose'
     : null
 
   return (

@@ -164,6 +164,9 @@ func handleGameByID(w http.ResponseWriter, r *http.Request) {
 			jsonErr(w, "game not found", 404)
 			return
 		}
+		if name := r.URL.Query().Get("name"); name != "" {
+			game.Player2 = name
+		}
 		jsonOK(w, game)
 		return
 	}
@@ -178,6 +181,8 @@ func handleGameByID(w http.ResponseWriter, r *http.Request) {
 			jsonErr(w, "game not found", 404)
 			return
 		}
+		game.mu.Lock()
+		defer game.mu.Unlock()
 		if game.Winner != 0 || game.Draw {
 			jsonErr(w, "game over", 400)
 			return
@@ -292,6 +297,10 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case action == "stats":
+		if r.Method != "GET" {
+			jsonErr(w, "method not allowed", 405)
+			return
+		}
 		requireAdmin(func(w http.ResponseWriter, r *http.Request) {
 			stats := collectStats(db)
 			jsonOK(w, stats)

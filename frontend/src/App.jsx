@@ -111,6 +111,7 @@ export default function App() {
   }, [mode, turn, winner, draw, place, winLen, sound])
 
   const startGame = useCallback((m, opts) => {
+    placingRef.current = false
     const sz = opts?.size || 5
     const wl = opts?.win || 4
     if (m === 'online') {
@@ -135,6 +136,7 @@ export default function App() {
   }, [])
 
   const playAgain = useCallback(() => {
+    placingRef.current = false
     setBoard(createBoard(size))
     setTurn(P1)
     setWinner(null)
@@ -154,6 +156,7 @@ export default function App() {
   }, [winner, name, name2, submitWin])
 
   const goToMenu = useCallback(() => {
+    placingRef.current = false
     setScreen('menu')
     setMode(null)
     setWinner(null)
