@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { P1, P2, EMPTY } from '../game'
 import PlayerShape from './PlayerShape'
 
@@ -81,8 +81,8 @@ export default function OnlineGame({ size, winLen, onBack }) {
       if (!r.ok) { setError(data.error || 'invalid move'); return }
       setBoard(data.board.cells)
       setTurn(data.turn)
-      if (data.winner) setWinner(data.winner)
       if (data.draw) setDraw(true)
+      if (data.winner) setWinner(data.winner)
     } catch {
       setError('network error')
     }
@@ -120,8 +120,8 @@ export default function OnlineGame({ size, winLen, onBack }) {
   const cellSize = Math.min(60, Math.floor(480 / n))
   const isMyTurn = turn === myPlayer
   const result = winner === myPlayer ? 'you win!'
-    : winner !== 0 ? 'you lose'
     : draw ? 'draw'
+    : winner !== 0 ? 'you lose'
     : null
 
   return (

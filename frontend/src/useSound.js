@@ -4,7 +4,11 @@ export function useSound() {
   const ctx = useRef(null)
 
   const getCtx = useCallback(() => {
-    if (!ctx.current) ctx.current = new (window.AudioContext || window.webkitAudioContext)()
+    if (!ctx.current) {
+      const Ctor = window.AudioContext || window.webkitAudioContext
+      ctx.current = new Ctor()
+    }
+    if (ctx.current.state === 'suspended') ctx.current.resume()
     return ctx.current
   }, [])
 

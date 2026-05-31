@@ -33,6 +33,7 @@ export default function App() {
   boardRef.current = board
   const sound = useSound()
   const aiSoundRef = useRef(false)
+  const placingRef = useRef(false)
 
   useEffect(() => { localStorage.setItem('tix_p1', name) }, [name])
   useEffect(() => { localStorage.setItem('tix_p2', name2) }, [name2])
@@ -62,9 +63,10 @@ export default function App() {
   }, [fetchLb, size, mode])
 
   const place = useCallback((r, c) => {
-    if (winner || draw) return
+    if (winner || draw || placingRef.current) return
+    placingRef.current = true
     const cur = boardRef.current
-    if (cur[r][c] !== EMPTY) return
+    if (cur[r][c] !== EMPTY) { placingRef.current = false; return }
     const next = cur.map(row => [...row])
     next[r][c] = turn
     setMoveCount(m => m + 1)
@@ -80,7 +82,7 @@ export default function App() {
         draws: s.draws,
       }))
       sound.win()
-      setTimeout(() => setShowResult(true), 600)
+      setTimeout(() => { setShowResult(true); placingRef.current = false }, 600)
       return
     }
     if (isFull(next)) {
@@ -88,12 +90,13 @@ export default function App() {
       setDraw(true)
       setScore(s => ({ ...s, draws: s.draws + 1 }))
       sound.draw()
-      setTimeout(() => setShowResult(true), 600)
+      setTimeout(() => { setShowResult(true); placingRef.current = false }, 600)
       return
     }
     setBoard(next)
     setTurn(turn === P1 ? P2 : P1)
     sound.place()
+    placingRef.current = false
   }, [turn, winner, draw, winLen, sound])
 
   useEffect(() => {
