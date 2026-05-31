@@ -11,6 +11,7 @@ body {
   background: #0c0c0c;
   color: #eee;
   padding: 24px;
+  min-height: 100vh;
 }
 h1 { font-size: 20px; margin-bottom: 24px; text-transform: lowercase; letter-spacing: -0.5px; }
 h1 span { color: #555; font-weight: 400; }
@@ -59,7 +60,8 @@ td { padding: 4px 8px 4px 0; color: #ccc; border-bottom: 1px solid #1e1e1e; font
 }
 .login-card input:focus { outline: none; border-color: #2dd4bf; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+.footer { text-align: center; margin-top: 32px; font-size: 11px; color: #555; font-family: 'JetBrains Mono', monospace; }
+@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } body { padding: 16px; } }
 </style>
 </head>
 <body>
@@ -67,13 +69,20 @@ td { padding: 4px 8px 4px 0; color: #ccc; border-bottom: 1px solid #1e1e1e; font
 <div id="app">
   <div class="login-card card" id="login-screen">
     <h1>tix <span>admin</span></h1>
+    <p style="font-size:12px;color:#555;margin-bottom:16px;font-family:'JetBrains Mono',monospace;">
+      set <code style="color:#2dd4bf;">ADMIN_SECRET</code> on the server
+    </p>
     <input type="password" id="secret-input" placeholder="admin secret" autofocus>
+    <input type="text" id="api-url" placeholder="http://localhost:8080" style="margin-top:8px;">
     <button class="btn" onclick="login()" style="color:#2dd4bf;border-color:#2dd4bf;">unlock</button>
     <div id="login-error" class="error"></div>
   </div>
 
   <div id="dashboard" style="display:none">
-    <h1>tix <span>admin</span> <span id="status" style="font-size:12px;color:#555;margin-left:12px;"></span></h1>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <h1>tix <span>admin</span></h1>
+      <button class="btn" onclick="location.reload()" style="color:#555;border-color:#1e1e1e;font-size:10px;">refresh</button>
+    </div>
 
     <div class="grid">
       <div class="card">
@@ -111,26 +120,31 @@ td { padding: 4px 8px 4px 0; color: #ccc; border-bottom: 1px solid #1e1e1e; font
 
     <div class="card">
       <h2>recent requests <span style="color:#555;font-weight:400;">(last 100)</span></h2>
-      <div style="max-height:300px;overflow-y:auto" id="log-table-wrap">
+      <div style="max-height:300px;overflow-y:auto">
         <table id="log-table"><tr><td style="color:#555">loading...</td></tr></table>
       </div>
     </div>
   </div>
 </div>
 
+<div class="footer">built by <a href="https://devolabanks.xyz" target="_blank" style="color:#2dd4bf;text-decoration:none;">dev_olabanks</a></div>
+
 <script>
 let token = ''
+let base = ''
 
 function login() {
   const secret = document.getElementById('secret-input').value
+  const url = document.getElementById('api-url').value.trim() || 'http://localhost:8080'
   if (!secret) return
   token = secret
+  base = url.replace(/\/+$/, '')
   document.getElementById('login-error').textContent = ''
   fetchStats()
 }
 
 function api(path) {
-  return fetch(path, {
+  return fetch(base + path, {
     headers: { 'Authorization': 'Bearer ' + token }
   })
 }
@@ -138,10 +152,7 @@ function api(path) {
 function fetchStats() {
   api('/api/admin/stats')
     .then(r => {
-      if (r.status === 401) {
-        document.getElementById('login-error').textContent = 'invalid secret'
-        return null
-      }
+      if (r.status === 401) { document.getElementById('login-error').textContent = 'invalid secret'; return null }
       if (!r.ok) throw new Error('failed')
       return r.json()
     })
@@ -151,9 +162,7 @@ function fetchStats() {
       document.getElementById('dashboard').style.display = 'block'
       renderStats(data)
     })
-    .catch(() => {
-      document.getElementById('login-error').textContent = 'connection error'
-    })
+    .catch(() => { document.getElementById('login-error').textContent = 'cannot reach server at ' + base })
 
   api('/api/admin/logs')
     .then(r => r.ok ? r.json() : [])
@@ -164,7 +173,6 @@ function renderStats(data) {
   document.getElementById('stat-requests').textContent = data.totalRequests || 0
   document.getElementById('stat-wins').textContent = data.totalWins || 0
   document.getElementById('stat-players').textContent = data.uniquePlayers || 0
-  document.getElementById('status').textContent = new Date().toLocaleString()
 
   const modeEl = document.getElementById('mode-breakdown')
   if (data.modeBreakdown && data.modeBreakdown.length) {
@@ -215,7 +223,7 @@ function renderLogs(logs) {
 
 function clearLeaderboard() {
   if (!confirm('clear all leaderboard entries?')) return
-  fetch('/api/admin/leaderboard', {
+  fetch(base + '/api/admin/leaderboard', {
     method: 'DELETE',
     headers: { 'Authorization': 'Bearer ' + token }
   })
@@ -224,9 +232,7 @@ function clearLeaderboard() {
       document.getElementById('action-msg').innerHTML = '<div class="success">leaderboard cleared</div>'
       fetchStats()
     })
-    .catch(() => {
-      document.getElementById('action-msg').innerHTML = '<div class="error">failed to clear</div>'
-    })
+    .catch(() => { document.getElementById('action-msg').innerHTML = '<div class="error">failed</div>' })
 }
 </script>
 </body>

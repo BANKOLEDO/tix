@@ -2,17 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"embed"
 	"encoding/json"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 )
-
-//go:embed admin/*
-var adminFS embed.FS
 
 var db *sql.DB
 var statsStore *StatsStore
@@ -49,21 +44,8 @@ func main() {
 	mux.HandleFunc("/api/win", handleWin)
 	mux.HandleFunc("/api/leaderboard", handleLeaderboard)
 	mux.HandleFunc("/api/admin/", handleAdmin)
-	mux.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/admin/", 301)
-	})
-	mux.Handle("/admin/", serveAdminUI())
-
 	log.Printf("server listening on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, loggingMiddleware(cors(mux))))
-}
-
-func serveAdminUI() http.Handler {
-	sub, err := fs.Sub(adminFS, "admin")
-	if err != nil {
-		log.Fatalf("failed to load admin fs: %v", err)
-	}
-	return http.StripPrefix("/admin/", http.FileServer(http.FS(sub)))
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
