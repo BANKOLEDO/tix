@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tix admin</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  background: #0c0c0c;
+  color: #eee;
+  padding: 24px;
+}
+h1 { font-size: 20px; margin-bottom: 24px; text-transform: lowercase; letter-spacing: -0.5px; }
+h1 span { color: #555; font-weight: 400; }
+.card {
+  background: #141414;
+  border: 1px solid #1e1e1e;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #555; margin-bottom: 12px; font-weight: 600; }
+.stat-row { display: flex; gap: 24px; flex-wrap: wrap; }
+.stat { font-size: 28px; font-weight: 700; }
+.stat-label { font-size: 11px; color: #555; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 1px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: #555; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 4px 8px 8px 0; }
+td { padding: 4px 8px 4px 0; color: #ccc; border-bottom: 1px solid #1e1e1e; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.rank { color: #555; width: 32px; }
+.wins { color: #2dd4bf; font-weight: 600; }
+.btn {
+  background: transparent;
+  color: #f87171;
+  border: 1px solid #f87171;
+  padding: 8px 20px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.15s;
+}
+.btn:hover { background: #f87171; color: #0c0c0c; }
+.error { color: #f87171; font-size: 12px; margin-top: 8px; }
+.success { color: #2dd4bf; font-size: 12px; margin-top: 8px; }
+.login-card { max-width: 360px; margin: 80px auto; text-align: center; }
+.login-card input {
+  background: #0c0c0c;
+  border: 1px solid #1e1e1e;
+  color: #eee;
+  padding: 10px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  width: 100%;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.login-card input:focus { outline: none; border-color: #2dd4bf; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="login-card card" id="login-screen">
+    <h1>tix <span>admin</span></h1>
+    <input type="password" id="secret-input" placeholder="admin secret" autofocus>
+    <button class="btn" onclick="login()" style="color:#2dd4bf;border-color:#2dd4bf;">unlock</button>
+    <div id="login-error" class="error"></div>
+  </div>
+
+  <div id="dashboard" style="display:none">
+    <h1>tix <span>admin</span> <span id="status" style="font-size:12px;color:#555;margin-left:12px;"></span></h1>
+
+    <div class="grid">
+      <div class="card">
+        <h2>overview</h2>
+        <div class="stat-row">
+          <div><div class="stat" id="stat-requests">-</div><div class="stat-label">requests</div></div>
+          <div><div class="stat" id="stat-wins">-</div><div class="stat-label">wins</div></div>
+          <div><div class="stat" id="stat-players">-</div><div class="stat-label">players</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>by mode</h2>
+        <div id="mode-breakdown">-</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>top players</h2>
+        <table id="top-table"><tr><td style="color:#555">loading...</td></tr></table>
+      </div>
+
+      <div class="card">
+        <h2>recent IPs</h2>
+        <table id="ip-table"><tr><td style="color:#555">loading...</td></tr></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>actions</h2>
+      <button class="btn" onclick="clearLeaderboard()">clear leaderboard</button>
+      <div id="action-msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>recent requests <span style="color:#555;font-weight:400;">(last 100)</span></h2>
+      <div style="max-height:300px;overflow-y:auto" id="log-table-wrap">
+        <table id="log-table"><tr><td style="color:#555">loading...</td></tr></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let token = ''
+
+function login() {
+  const secret = document.getElementById('secret-input').value
+  if (!secret) return
+  token = secret
+  document.getElementById('login-error').textContent = ''
+  fetchStats()
+}
+
+function api(path) {
+  return fetch(path, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  })
+}
+
+function fetchStats() {
+  api('/api/admin/stats')
+    .then(r => {
+      if (r.status === 401) {
+        document.getElementById('login-error').textContent = 'invalid secret'
+        return null
+      }
+      if (!r.ok) throw new Error('failed')
+      return r.json()
+    })
+    .then(data => {
+      if (!data) return
+      document.getElementById('login-screen').style.display = 'none'
+      document.getElementById('dashboard').style.display = 'block'
+      renderStats(data)
+    })
+    .catch(() => {
+      document.getElementById('login-error').textContent = 'connection error'
+    })
+
+  api('/api/admin/logs')
+    .then(r => r.ok ? r.json() : [])
+    .then(logs => renderLogs(logs))
+}
+
+function renderStats(data) {
+  document.getElementById('stat-requests').textContent = data.totalRequests || 0
+  document.getElementById('stat-wins').textContent = data.totalWins || 0
+  document.getElementById('stat-players').textContent = data.uniquePlayers || 0
+  document.getElementById('status').textContent = new Date().toLocaleString()
+
+  const modeEl = document.getElementById('mode-breakdown')
+  if (data.modeBreakdown && data.modeBreakdown.length) {
+    modeEl.innerHTML = data.modeBreakdown.map(m =>
+      `<div style="margin-bottom:4px;font-family:'JetBrains Mono',monospace;font-size:13px">
+        <span style="color:#555;text-transform:uppercase;font-size:11px;">${m.mode}</span>
+        <span style="float:right;color:#2dd4bf;font-weight:600;">${m.count}</span>
+      </div>`
+    ).join('')
+  } else {
+    modeEl.textContent = '-'
+  }
+
+  const topEl = document.getElementById('top-table')
+  if (data.topPlayers && data.topPlayers.length) {
+    topEl.innerHTML = data.topPlayers.map((p, i) =>
+      `<tr><td class="rank">#${i+1}</td><td>${p.name}</td><td class="wins">${p.wins}w</td></tr>`
+    ).join('')
+  } else {
+    topEl.innerHTML = '<tr><td style="color:#555">no data</td></tr>'
+  }
+
+  const ipEl = document.getElementById('ip-table')
+  if (data.recentIPs && data.recentIPs.length) {
+    ipEl.innerHTML = data.recentIPs.map(ip =>
+      `<tr><td style="font-size:12px;">${ip}</td></tr>`
+    ).join('')
+  } else {
+    ipEl.innerHTML = '<tr><td style="color:#555">no data</td></tr>'
+  }
+}
+
+function renderLogs(logs) {
+  const el = document.getElementById('log-table')
+  if (!logs || !logs.length) {
+    el.innerHTML = '<tr><td style="color:#555">no data</td></tr>'
+    return
+  }
+  el.innerHTML = logs.map(l =>
+    `<tr>
+      <td style="color:#555;font-size:11px;">${l.createdAt || ''}</td>
+      <td style="color:#555;font-size:11px;">${l.method}</td>
+      <td style="font-size:11px;">${l.path}</td>
+      <td style="color:#555;font-size:11px;">${l.ip || ''}</td>
+    </tr>`
+  ).join('')
+}
+
+function clearLeaderboard() {
+  if (!confirm('clear all leaderboard entries?')) return
+  fetch('/api/admin/leaderboard', {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + token }
+  })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(() => {
+      document.getElementById('action-msg').innerHTML = '<div class="success">leaderboard cleared</div>'
+      fetchStats()
+    })
+    .catch(() => {
+      document.getElementById('action-msg').innerHTML = '<div class="error">failed to clear</div>'
+    })
+}
+</script>
+</body>
+</html>

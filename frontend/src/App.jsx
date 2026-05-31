@@ -18,13 +18,16 @@ export default function App() {
   const [turn, setTurn] = useState(P1)
   const [winner, setWinner] = useState(null)
   const [draw, setDraw] = useState(false)
-  const [name, setName] = useState('')
-  const [name2, setName2] = useState('')
+  const [name, setName] = useState(() => localStorage.getItem('tix_p1') || '')
+  const [name2, setName2] = useState(() => localStorage.getItem('tix_p2') || '')
   const [lb, setLb] = useState([])
   const [showResult, setShowResult] = useState(false)
   const [showLb, setShowLb] = useState(false)
   const boardRef = useRef(board)
   boardRef.current = board
+
+  useEffect(() => { localStorage.setItem('tix_p1', name) }, [name])
+  useEffect(() => { localStorage.setItem('tix_p2', name2) }, [name2])
 
   const fetchLb = useCallback(async () => {
     try {

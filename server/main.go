@@ -1,18 +1,45 @@
 package main
 
 import (
+	"database/sql"
+	"embed"
 	"encoding/json"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 )
 
+//go:embed admin/*
+var adminFS embed.FS
+
+var db *sql.DB
+var statsStore *StatsStore
+var adminSecret string
+
 func main() {
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "tix.db"
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
+
+	adminSecret = os.Getenv("ADMIN_SECRET")
+
+	var err error
+	db, err = initDB(dbPath)
+	if err != nil {
+		log.Fatalf("failed to init db: %v", err)
+	}
+	defer db.Close()
+
+	statsStore = NewStatsStore(db)
+	startLogCleaner(db)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", handleHealth)
@@ -21,16 +48,47 @@ func main() {
 	mux.HandleFunc("/api/ai/move", handleAIMove)
 	mux.HandleFunc("/api/win", handleWin)
 	mux.HandleFunc("/api/leaderboard", handleLeaderboard)
+	mux.HandleFunc("/api/admin/", handleAdmin)
+	mux.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/admin/", 301)
+	})
+	mux.Handle("/admin/", serveAdminUI())
 
 	log.Printf("server listening on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, cors(mux)))
+	log.Fatal(http.ListenAndServe(":"+port, loggingMiddleware(cors(mux))))
+}
+
+func serveAdminUI() http.Handler {
+	sub, err := fs.Sub(adminFS, "admin")
+	if err != nil {
+		log.Fatalf("failed to load admin fs: %v", err)
+	}
+	return http.StripPrefix("/admin/", http.FileServer(http.FS(sub)))
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/api/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		ip := r.RemoteAddr
+		if idx := strings.LastIndex(ip, ":"); idx != -1 {
+			ip = ip[:idx]
+		}
+		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+			ip = strings.Split(fwd, ",")[0]
+		}
+		logRequest(db, r.Method, r.URL.Path, ip, r.UserAgent())
+		next.ServeHTTP(w, r)
+	})
 }
 
 func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(204)
 			return
@@ -50,6 +108,21 @@ func jsonErr(w http.ResponseWriter, msg string, code int) {
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
+func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if adminSecret == "" {
+			jsonErr(w, "admin not configured (set ADMIN_SECRET)", 403)
+			return
+		}
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer "+adminSecret {
+			jsonErr(w, "unauthorized", 401)
+			return
+		}
+		next(w, r)
+	}
+}
+
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]string{"status": "ok"})
 }
@@ -60,9 +133,9 @@ func handleGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Size   int    `json:"size"`
-		WinLen int    `json:"winLen"`
-		Mode   string `json:"mode"`
+		Size    int    `json:"size"`
+		WinLen  int    `json:"winLen"`
+		Mode    string `json:"mode"`
 		Player1 string `json:"player1"`
 		Player2 string `json:"player2"`
 	}
@@ -182,9 +255,9 @@ func handleWin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Name     string `json:"name"`
-		BoardSize int   `json:"boardSize"`
-		Mode     string `json:"mode"`
+		Name      string `json:"name"`
+		BoardSize int    `json:"boardSize"`
+		Mode      string `json:"mode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
 		jsonErr(w, "bad request", 400)
@@ -205,6 +278,49 @@ func handleLeaderboard(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, "method not allowed", 405)
 		return
 	}
-	top := statsStore.Leaderboard(20)
+	top := statsStore.Leaderboard(50)
+	if top == nil {
+		top = []PlayerStat{}
+	}
 	jsonOK(w, top)
 }
+
+func handleAdmin(w http.ResponseWriter, r *http.Request) {
+	if !strings.HasPrefix(r.URL.Path, "/api/admin/") {
+		jsonErr(w, "not found", 404)
+		return
+	}
+
+	action := strings.TrimPrefix(r.URL.Path, "/api/admin/")
+
+	switch {
+	case action == "stats":
+		requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+			stats := collectStats(db)
+			jsonOK(w, stats)
+		})(w, r)
+
+	case action == "leaderboard" && r.Method == "DELETE":
+		requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+			if err := clearLeaderboardDB(db); err != nil {
+				jsonErr(w, "failed to clear", 500)
+				return
+			}
+			jsonOK(w, map[string]string{"ok": "true"})
+		})(w, r)
+
+	case action == "logs":
+		requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+			logs := recentLogs(db, 100)
+			if logs == nil {
+				logs = []LogEntry{}
+			}
+			jsonOK(w, logs)
+		})(w, r)
+
+	default:
+		jsonErr(w, "unknown admin action", 404)
+	}
+}
+
+

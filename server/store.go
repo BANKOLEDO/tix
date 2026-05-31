@@ -2,82 +2,60 @@ package main
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
-	"sort"
 	"sync"
 )
 
 type GameState struct {
-	ID       string `json:"id"`
-	Board    *Board `json:"board"`
-	Turn     int    `json:"turn"`
-	Winner   int    `json:"winner"`
-	Mode     string `json:"mode"`
-	Player1  string `json:"player1"`
-	Player2  string `json:"player2"`
-	Draw     bool   `json:"draw"`
+	ID      string `json:"id"`
+	Board   *Board `json:"board"`
+	Turn    int    `json:"turn"`
+	Winner  int    `json:"winner"`
+	Mode    string `json:"mode"`
+	Player1 string `json:"player1"`
+	Player2 string `json:"player2"`
+	Draw    bool   `json:"draw"`
 }
 
 type PlayerStat struct {
-	Name     string `json:"name"`
-	Wins     int    `json:"wins"`
-	BoardSize int   `json:"boardSize"`
-	Mode     string `json:"mode"`
+	Name string `json:"name"`
+	Wins int    `json:"wins"`
 }
 
 type StatsStore struct {
-	mu  sync.RWMutex
-	all []PlayerStat
+	db *sql.DB
+}
+
+func NewStatsStore(db *sql.DB) *StatsStore {
+	return &StatsStore{db: db}
 }
 
 func (s *StatsStore) AddWin(name string, size int, mode string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.all = append(s.all, PlayerStat{Name: name, Wins: 1, BoardSize: size, Mode: mode})
+	s.db.Exec(
+		"INSERT INTO leaderboard (name, board_size, mode) VALUES (?, ?, ?)",
+		name, size, mode,
+	)
 }
 
 func (s *StatsStore) Leaderboard(n int) []PlayerStat {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	agg := make(map[string]*PlayerStat)
-	for _, stat := range s.all {
-		key := stat.Name + "|" + itoa(stat.BoardSize) + "|" + stat.Mode
-		if _, ok := agg[key]; !ok {
-			agg[key] = &PlayerStat{Name: stat.Name, Wins: 0, BoardSize: stat.BoardSize, Mode: stat.Mode}
-		}
-		agg[key].Wins++
+	rows, err := s.db.Query(
+		"SELECT name, COUNT(*) as wins FROM leaderboard GROUP BY name ORDER BY wins DESC, name ASC LIMIT ?",
+		n,
+	)
+	if err != nil {
+		return nil
 	}
+	defer rows.Close()
 
 	var list []PlayerStat
-	for _, v := range agg {
-		list = append(list, *v)
+	for rows.Next() {
+		var ps PlayerStat
+		rows.Scan(&ps.Name, &ps.Wins)
+		list = append(list, ps)
 	}
-
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].Wins > list[j].Wins
-	})
-	if n > len(list) {
-		n = len(list)
-	}
-	return list[:n]
+	return list
 }
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var buf [12]byte
-	i := len(buf)
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(buf[i:])
-}
-
-var statsStore = &StatsStore{}
 
 type GameStore struct {
 	mu    sync.RWMutex
