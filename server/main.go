@@ -13,6 +13,7 @@ import (
 var db *sql.DB
 var statsStore *StatsStore
 var adminSecret string
+var dbPath string
 
 func main() {
 	loadEnv()

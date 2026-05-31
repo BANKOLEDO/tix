@@ -38,6 +38,18 @@ export default function App() {
   useEffect(() => { localStorage.setItem('tix_p1', name) }, [name])
   useEffect(() => { localStorage.setItem('tix_p2', name2) }, [name2])
 
+  useEffect(() => {
+    if (screen === 'landing') document.title = 'tix — configurable tic-tac-toe arena'
+    else if (screen === 'menu') document.title = 'tix — new game'
+    else if (screen === 'online') document.title = 'tix — online'
+    else if (winner === P1) document.title = `${name.trim() || 'player 1'} wins — tix`
+    else if (winner === P2 && mode === 'friend') document.title = `${name2.trim() || 'player 2'} wins — tix`
+    else if (winner === P2) document.title = 'ai wins — tix'
+    else if (draw) document.title = 'draw — tix'
+    else if (mode === 'ai') document.title = 'tix — vs AI'
+    else document.title = 'tix'
+  }, [screen, winner, draw, mode, name, name2])
+
   const fetchLb = useCallback(async () => {
     try {
       const r = await fetch(`${API}/api/leaderboard`)
