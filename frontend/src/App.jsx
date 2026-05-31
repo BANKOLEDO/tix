@@ -66,6 +66,7 @@ export default function App() {
     if (cur[r][c] !== EMPTY) return
     const next = cur.map(row => [...row])
     next[r][c] = turn
+    setMoveCount(m => m + 1)
     const wc = checkWin(next, turn, winLen)
     if (wc) {
       setBoard(next)
@@ -91,7 +92,6 @@ export default function App() {
     }
     setBoard(next)
     setTurn(turn === P1 ? P2 : P1)
-    setMoveCount(m => m + 1)
     sound.place()
   }, [turn, winner, draw, winLen, sound])
 
