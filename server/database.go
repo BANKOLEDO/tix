@@ -52,13 +52,15 @@ func logRequest(db *sql.DB, method, path, ip, ua string) {
 }
 
 type AdminStats struct {
-	TotalRequests int            `json:"totalRequests"`
-	TotalWins     int            `json:"totalWins"`
-	UniquePlayers int            `json:"uniquePlayers"`
-	TopPlayers    []PlayerStat   `json:"topPlayers"`
-	RecentIPs     []string       `json:"recentIPs"`
-	ModeBreakdown []ModeCount    `json:"modeBreakdown"`
-	DailyWins     []DailyCount   `json:"dailyWins"`
+	TotalRequests  int          `json:"totalRequests"`
+	TotalWins      int          `json:"totalWins"`
+	UniquePlayers  int          `json:"uniquePlayers"`
+	TopPlayers     []PlayerStat `json:"topPlayers"`
+	RecentIPs      []string     `json:"recentIPs"`
+	ModeBreakdown  []ModeCount  `json:"modeBreakdown"`
+	BoardBreakdown []ModeCount  `json:"boardBreakdown"`
+	DailyWins      []DailyCount `json:"dailyWins"`
+	ActiveGames    int          `json:"activeGames"`
 }
 
 type ModeCount struct {
@@ -117,6 +119,18 @@ func collectStats(db *sql.DB) AdminStats {
 		s.DailyWins = append(s.DailyWins, dc)
 	}
 	dailyRows.Close()
+
+	boardRows, _ := db.Query(
+		"SELECT board_size, COUNT(*) as count FROM leaderboard GROUP BY board_size ORDER BY count DESC",
+	)
+	for boardRows.Next() {
+		var mc ModeCount
+		boardRows.Scan(&mc.Mode, &mc.Count)
+		s.BoardBreakdown = append(s.BoardBreakdown, mc)
+	}
+	boardRows.Close()
+
+	s.ActiveGames = gameStore.Count()
 
 	return s
 }

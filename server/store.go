@@ -88,6 +88,12 @@ func (gs *GameStore) Get(id string) *GameState {
 	return gs.games[id]
 }
 
+func (gs *GameStore) Count() int {
+	gs.mu.RLock()
+	defer gs.mu.RUnlock()
+	return len(gs.games)
+}
+
 func (gs *GameStore) Update(id string, game *GameState) {
 	gs.mu.Lock()
 	gs.games[id] = game
