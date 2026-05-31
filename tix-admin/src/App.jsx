@@ -23,8 +23,11 @@ export default function App() {
   const [lastRefresh, setLastRefresh] = useState(null)
   const [connected, setConnected] = useState(false)
   const intervalRef = useRef(null)
+  const fetchingRef = useRef(false)
 
   const fetchData = useCallback(async (b, t) => {
+    if (fetchingRef.current) return
+    fetchingRef.current = true
     setRefreshing(true)
     try {
       const [s, l] = await Promise.all([
@@ -40,12 +43,13 @@ export default function App() {
       setConnected(false)
     } finally {
       setRefreshing(false)
+      fetchingRef.current = false
     }
   }, [])
 
   useEffect(() => {
     if (!token || !base) return
-    intervalRef.current = setInterval(() => fetchData(base, token), 15000)
+    intervalRef.current = setInterval(() => fetchData(base, token), 30000)
     return () => clearInterval(intervalRef.current)
   }, [token, base, fetchData])
 

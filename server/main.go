@@ -57,6 +57,11 @@ func loggingMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		// skip CORS preflight and admin monitoring noise
+		if r.Method == "OPTIONS" || strings.HasPrefix(r.URL.Path, "/api/admin/") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		ip := r.RemoteAddr
 		if idx := strings.LastIndex(ip, ":"); idx != -1 {
 			ip = ip[:idx]
