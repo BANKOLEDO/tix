@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { P1, P2, EMPTY, createBoard, checkWin, isFull } from '../game'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { P1, P2, EMPTY } from '../game'
 import PlayerShape from './PlayerShape'
 
 export default function OnlineGame({ size, winLen, onBack }) {
@@ -11,8 +11,26 @@ export default function OnlineGame({ size, winLen, onBack }) {
   const [myPlayer, setMyPlayer] = useState(null)
   const [joinId, setJoinId] = useState('')
   const [error, setError] = useState('')
-
   const api = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+
+  const pollFn = useCallback(async () => {
+    if (!gameId) return
+    try {
+      const r = await fetch(`${api}/api/game/${gameId}`)
+      const data = await r.json()
+      setBoard(data.board.cells)
+      setTurn(data.turn)
+      if (data.winner) setWinner(data.winner)
+      if (data.draw) setDraw(true)
+    } catch {}
+  }, [api, gameId])
+
+  useEffect(() => {
+    if (!gameId || winner || draw) return
+    pollFn()
+    const id = setInterval(pollFn, 1000)
+    return () => clearInterval(id)
+  }, [gameId, winner, draw, pollFn])
 
   async function createGame() {
     setError('')
@@ -68,18 +86,6 @@ export default function OnlineGame({ size, winLen, onBack }) {
     } catch {
       setError('network error')
     }
-  }
-
-  async function pollGame() {
-    if (!gameId) return
-    try {
-      const r = await fetch(`${api}/api/game/${gameId}`)
-      const data = await r.json()
-      setBoard(data.board.cells)
-      setTurn(data.turn)
-      if (data.winner) setWinner(data.winner)
-      if (data.draw) setDraw(true)
-    } catch {}
   }
 
   if (!gameId) {

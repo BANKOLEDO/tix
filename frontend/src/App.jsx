@@ -32,6 +32,7 @@ export default function App() {
   const boardRef = useRef(board)
   boardRef.current = board
   const sound = useSound()
+  const aiSoundRef = useRef(false)
 
   useEffect(() => { localStorage.setItem('tix_p1', name) }, [name])
   useEffect(() => { localStorage.setItem('tix_p2', name2) }, [name2])
@@ -96,9 +97,10 @@ export default function App() {
   }, [turn, winner, draw, winLen, sound])
 
   useEffect(() => {
-    if (mode !== 'ai' || turn !== P2 || winner || draw) return
-    sound.aiThink()
+    if (mode !== 'ai' || turn !== P2 || winner || draw) { aiSoundRef.current = false; return }
+    if (!aiSoundRef.current) { aiSoundRef.current = true; sound.aiThink() }
     const id = setTimeout(() => {
+      aiSoundRef.current = false
       const move = aiMove(boardRef.current, P2, P1, winLen)
       if (move) place(move[0], move[1])
     }, 400)
