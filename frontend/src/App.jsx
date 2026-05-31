@@ -209,7 +209,7 @@ export default function App() {
           </div>
         )}
         {screen === 'online' && (
-          <OnlineGame size={size} winLen={winLen} onBack={goToMenu} />
+          <OnlineGame size={size} winLen={winLen} player1={name.trim() || 'player 1'} player2={name2.trim() || 'player 2'} onBack={goToMenu} />
         )}
       </main>
 

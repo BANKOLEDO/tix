@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { P1, P2, EMPTY } from '../game'
 import PlayerShape from './PlayerShape'
 
-export default function OnlineGame({ size, winLen, onBack }) {
+export default function OnlineGame({ size, winLen, player1, player2, onBack }) {
   const [gameId, setGameId] = useState(null)
   const [board, setBoard] = useState(null)
   const [turn, setTurn] = useState(P1)
@@ -38,7 +38,7 @@ export default function OnlineGame({ size, winLen, onBack }) {
       const r = await fetch(`${api}/api/game`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ size, winLen, mode: 'online', player1: 'p1', player2: 'p2' }),
+        body: JSON.stringify({ size, winLen, mode: 'online', player1, player2 }),
       })
       const data = await r.json()
       setGameId(data.id)

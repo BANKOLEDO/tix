@@ -203,6 +203,13 @@ func handleGameByID(w http.ResponseWriter, r *http.Request) {
 
 		if game.Board.CheckWin(body.Player) {
 			game.Winner = body.Player
+			winnerName := game.Player2
+			if body.Player == P1 {
+				winnerName = game.Player1
+			}
+			if winnerName != "" {
+				statsStore.AddWin(winnerName, game.Board.Size, "online")
+			}
 		} else if game.Board.IsFull() {
 			game.Draw = true
 		} else {
