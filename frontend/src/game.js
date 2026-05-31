@@ -13,6 +13,7 @@ export function checkWin(board, player, winLen) {
     for (let c = 0; c < n; c++) {
       if (board[r][c] !== player) continue
       for (const [dr, dc] of dirs) {
+        const cells = [[r, c]]
         let ok = true
         for (let i = 1; i < winLen; i++) {
           const nr = r + dr * i
@@ -21,12 +22,13 @@ export function checkWin(board, player, winLen) {
             ok = false
             break
           }
+          cells.push([nr, nc])
         }
-        if (ok) return true
+        if (ok) return cells
       }
     }
   }
-  return false
+  return null
 }
 
 export function isFull(board) {

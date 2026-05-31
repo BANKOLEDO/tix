@@ -58,9 +58,25 @@ body {
   font-family: var(--mono);
 }
 
+.hdr-score {
+  font-size: 11px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-weight: 600;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+}
+
+.hdr-moves {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  margin-left: auto;
+}
+
 .hdr-lb-btn {
   display: none;
-  margin-left: auto;
+  margin-left: 12px;
   background: none;
   border: 1px solid var(--border);
   color: var(--muted);
@@ -450,6 +466,24 @@ body {
   100% { transform: scale(1); opacity: 1; }
 }
 
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(45, 212, 191, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(45, 212, 191, 0.6), inset 0 0 8px rgba(45, 212, 191, 0.1); }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(120px) translateX(var(--drift)) rotate(360deg); opacity: 0; }
+}
+
+.win-cell {
+  background: rgba(45, 212, 191, 0.08) !important;
+}
+
+.win-cell.pulse {
+  animation: pulse-glow 1s ease-in-out infinite;
+}
+
 /* leaderboard */
 .lb {
   border-left: 1px solid var(--border);
@@ -504,6 +538,24 @@ body {
 .lb-sc {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* confetti */
+.confetti-container {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 0;
+  z-index: 150;
+  pointer-events: none;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  border-radius: 2px;
+  animation: confetti-fall ease-out forwards;
 }
 
 /* footer */
@@ -624,6 +676,8 @@ body {
   }
 
   .hdr-s { display: none; }
+  .hdr-score { font-size: 10px; padding: 1px 6px; }
+  .hdr-moves { display: none; }
   .hdr-lb-btn { display: inline-flex; }
 
   .main {

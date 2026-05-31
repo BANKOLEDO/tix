@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createBoard, checkWin, isFull, aiMove, P1, P2, EMPTY } from './game'
+import { useSound } from './useSound'
 import Landing from './components/Landing'
 import Menu from './components/Menu'
 import Board from './components/Board'
 import Leaderboard from './components/Leaderboard'
 import ResultModal from './components/ResultModal'
 import OnlineGame from './components/OnlineGame'
+import Confetti from './components/Confetti'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
@@ -18,13 +20,18 @@ export default function App() {
   const [turn, setTurn] = useState(P1)
   const [winner, setWinner] = useState(null)
   const [draw, setDraw] = useState(false)
+  const [winCells, setWinCells] = useState(null)
+  const [moveCount, setMoveCount] = useState(0)
   const [name, setName] = useState(() => localStorage.getItem('tix_p1') || '')
   const [name2, setName2] = useState(() => localStorage.getItem('tix_p2') || '')
   const [lb, setLb] = useState([])
   const [showResult, setShowResult] = useState(false)
   const [showLb, setShowLb] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [score, setScore] = useState({ p1: 0, p2: 0, draws: 0 })
   const boardRef = useRef(board)
   boardRef.current = board
+  const sound = useSound()
 
   useEffect(() => { localStorage.setItem('tix_p1', name) }, [name])
   useEffect(() => { localStorage.setItem('tix_p2', name2) }, [name2])
@@ -55,31 +62,55 @@ export default function App() {
 
   const place = useCallback((r, c) => {
     if (winner || draw) return
+    let finalWinner = null
+    let isDraw = false
+    let wCells = null
     setBoard(prev => {
       if (prev[r][c] !== EMPTY) return prev
       const next = prev.map(row => [...row])
       next[r][c] = turn
-      if (checkWin(next, turn, winLen)) {
-        setTimeout(() => { setWinner(turn); setShowResult(true) }, 100)
+      wCells = checkWin(next, turn, winLen)
+      if (wCells) {
+        finalWinner = turn
         return next
       }
       if (isFull(next)) {
-        setTimeout(() => { setDraw(true); setShowResult(true) }, 100)
+        isDraw = true
         return next
       }
       setTurn(turn === P1 ? P2 : P1)
+      setMoveCount(m => m + 1)
       return next
     })
-  }, [turn, winner, draw, winLen])
+    sound.place()
+    if (finalWinner) {
+      setWinCells(wCells)
+      setWinner(finalWinner)
+      sound.win()
+      setShowConfetti(true)
+      setScore(s => ({
+        p1: s.p1 + (finalWinner === P1 ? 1 : 0),
+        p2: s.p2 + (finalWinner === P2 ? 1 : 0),
+        draws: s.draws,
+      }))
+      setTimeout(() => setShowResult(true), 600)
+    } else if (isDraw) {
+      setDraw(true)
+      sound.draw()
+      setScore(s => ({ ...s, draws: s.draws + 1 }))
+      setTimeout(() => setShowResult(true), 600)
+    }
+  }, [turn, winner, draw, winLen, sound])
 
   useEffect(() => {
     if (mode !== 'ai' || turn !== P2 || winner || draw) return
+    sound.aiThink()
     const id = setTimeout(() => {
       const move = aiMove(boardRef.current, P2, P1, winLen)
       if (move) place(move[0], move[1])
     }, 400)
     return () => clearTimeout(id)
-  }, [mode, turn, winner, draw, place, winLen])
+  }, [mode, turn, winner, draw, place, winLen, sound])
 
   const startGame = useCallback((m, opts) => {
     const sz = opts?.size || 5
@@ -98,7 +129,10 @@ export default function App() {
     setTurn(P1)
     setWinner(null)
     setDraw(false)
+    setWinCells(null)
+    setMoveCount(0)
     setShowResult(false)
+    setShowConfetti(false)
     setScreen('game')
   }, [])
 
@@ -107,7 +141,10 @@ export default function App() {
     setTurn(P1)
     setWinner(null)
     setDraw(false)
+    setWinCells(null)
+    setMoveCount(0)
     setShowResult(false)
+    setShowConfetti(false)
   }, [size])
 
   const handleSubmit = useCallback(() => {
@@ -123,14 +160,20 @@ export default function App() {
     setMode(null)
     setWinner(null)
     setDraw(false)
+    setWinCells(null)
+    setMoveCount(0)
     setShowResult(false)
+    setShowConfetti(false)
+    setScore({ p1: 0, p2: 0, draws: 0 })
   }, [])
 
-  const resultLabel = winner === P1
-    ? (name.trim() || 'player 1') + ' wins'
-    : winner === P2
-    ? (mode === 'ai' ? 'ai wins' : (name2.trim() || 'player 2') + ' wins')
-    : 'draw'
+  const resultLabel = useMemo(() => {
+    if (winner === P1) return (name.trim() || 'player 1') + ' wins'
+    if (winner === P2) return mode === 'ai' ? 'ai wins' : (name2.trim() || 'player 2') + ' wins'
+    return 'draw'
+  }, [winner, name, name2, mode])
+
+  const scoreLabel = `${score.p1} - ${score.p2}${score.draws ? ` (${score.draws}d)` : ''}`
 
   return (
     <div className="app">
@@ -143,6 +186,8 @@ export default function App() {
           <span className="hdr-t">tix</span>
         </div>
         <span className="hdr-s">{size}&times;{size} get {winLen}</span>
+        {mode === 'friend' && <span className="hdr-score">{scoreLabel}</span>}
+        <span className="hdr-moves">{moveCount > 0 && `${moveCount} moves`}</span>
         <button className="hdr-lb-btn" onClick={() => setShowLb(!showLb)} title="leaderboard">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 6 9 6 9z"/>
@@ -156,11 +201,12 @@ export default function App() {
       </header>
 
       <main className="main">
+        <Confetti active={showConfetti} />
         {screen === 'landing' && <Landing onEnter={() => setScreen('menu')} />}
         {screen === 'menu' && <Menu onStart={startGame} onBack={() => setScreen('landing')} name={name} name2={name2} onNameChange={setName} onName2Change={setName2} />}
         {screen === 'game' && (
           <div className="game-wrap">
-            <Board board={board} turn={turn} winner={winner} mode={mode} size={size} onPlace={place} />
+            <Board board={board} turn={turn} winner={winner} mode={mode} size={size} onPlace={place} winCells={winCells} />
             <button className="btn btn-sm" onClick={goToMenu}>quit</button>
           </div>
         )}

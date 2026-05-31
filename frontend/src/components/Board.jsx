@@ -1,11 +1,13 @@
 import { EMPTY, P1, P2 } from '../game'
 import PlayerShape from './PlayerShape'
 
-export default function Board({ board, turn, winner, mode, size, onPlace }) {
+export default function Board({ board, turn, winner, mode, size, onPlace, winCells }) {
   const n = size || board?.length || 3
   const maxBoardPx = Math.min(480, window.innerWidth - 80)
   const cellSize = Math.max(36, Math.floor(maxBoardPx / n))
   const isAiThinking = mode === 'ai' && turn === P2
+
+  const isWinCell = (r, c) => winCells?.some(([wr, wc]) => wr === r && wc === c)
 
   return (
     <div className="game-container">
@@ -24,7 +26,7 @@ export default function Board({ board, turn, winner, mode, size, onPlace }) {
           row.map((cell, c) => (
             <button
               key={`${r}-${c}`}
-              className={`cell${cell !== EMPTY ? ' taken' : ''}`}
+              className={`cell${cell !== EMPTY ? ' taken' : ''}${isWinCell(r, c) ? ' win-cell' : ''}${winner && cell !== EMPTY && isWinCell(r, c) ? ' pulse' : ''}`}
               onClick={() => onPlace(r, c)}
               disabled={cell !== EMPTY || !!winner || isAiThinking}
               style={{ width: cellSize, height: cellSize }}
