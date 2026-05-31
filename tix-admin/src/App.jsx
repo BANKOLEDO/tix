@@ -10,7 +10,7 @@ import RecentIPs from './components/RecentIPs'
 import RequestLogs from './components/RequestLogs'
 import ActionsPanel from './components/ActionsPanel'
 import Footer from './components/Footer'
-import { fetchStats, fetchLogs, clearLeaderboardAPI } from './components/api'
+import { fetchStats, fetchLogs, clearLeaderboardAPI, clearLogsAPI } from './components/api'
 
 export default function App() {
   const [token, setToken] = useState('')
@@ -116,11 +116,21 @@ export default function App() {
         </div>
 
         <ActionsPanel
-          onClear={async () => {
+          onClearLeaderboard={async () => {
             setActionMsg('')
             try {
               await clearLeaderboardAPI(base, token)
               setActionMsg('leaderboard cleared')
+              await fetchData(base, token)
+            } catch {
+              setActionMsg('failed')
+            }
+          }}
+          onClearLogs={async () => {
+            setActionMsg('')
+            try {
+              await clearLogsAPI(base, token)
+              setActionMsg('logs cleared')
               await fetchData(base, token)
             } catch {
               setActionMsg('failed')

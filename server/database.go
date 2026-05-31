@@ -140,6 +140,11 @@ func clearLeaderboardDB(db *sql.DB) error {
 	return err
 }
 
+func clearLogsDB(db *sql.DB) error {
+	_, err := db.Exec("DELETE FROM request_log")
+	return err
+}
+
 type LogEntry struct {
 	ID        int    `json:"id"`
 	Method    string `json:"method"`

@@ -160,6 +160,33 @@ td { padding: 6px 8px 6px 0; color: #ccc; border-bottom: 1px solid #1e1e1e; font
 .chart-fill-green { background: #34d399; }
 .chart-bar-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #2dd4bf; font-weight: 600; width: 32px; text-align: right; flex-shrink: 0; }
 
+/* --- Actions --- */
+.action-buttons { display: flex; flex-direction: column; gap: 8px; }
+.action-buttons .btn { width: 100%; }
+
+/* --- Toast --- */
+.toast-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+  opacity: 0; transition: opacity 0.2s;
+  pointer-events: none;
+}
+.toast-overlay.toast-show { opacity: 1; pointer-events: all; }
+.toast {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  padding: 24px 28px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+  transform: scale(0.95); transition: transform 0.2s;
+}
+.toast-show .toast { transform: scale(1); }
+.toast-msg { font-size: 14px; margin-bottom: 20px; color: #ccc; font-family: 'JetBrains Mono', monospace; }
+.toast-actions { display: flex; gap: 12px; justify-content: center; }
+
 /* --- Buttons --- */
 .btn {
   background: transparent;

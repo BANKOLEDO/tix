@@ -294,6 +294,15 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 			jsonOK(w, map[string]string{"ok": "true"})
 		})(w, r)
 
+	case action == "logs" && r.Method == "DELETE":
+		requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+			if err := clearLogsDB(db); err != nil {
+				jsonErr(w, "failed to clear logs", 500)
+				return
+			}
+			jsonOK(w, map[string]string{"ok": "true"})
+		})(w, r)
+
 	case action == "logs":
 		requireAdmin(func(w http.ResponseWriter, r *http.Request) {
 			logs := recentLogs(db, 100)

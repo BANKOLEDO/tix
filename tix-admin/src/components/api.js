@@ -24,3 +24,12 @@ export async function clearLeaderboardAPI(base, token) {
   if (!r.ok) throw new Error('failed to clear')
   return true
 }
+
+export async function clearLogsAPI(base, token) {
+  const r = await fetch(base + '/api/admin/logs', {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer ' + token },
+  })
+  if (!r.ok) throw new Error('failed to clear logs')
+  return true
+}
