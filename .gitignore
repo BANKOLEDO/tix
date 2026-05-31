@@ -12,3 +12,5 @@ server/tix_server.exe
 .DS_Store
 Thumbs.db
 *.log
+
+server/*.db
