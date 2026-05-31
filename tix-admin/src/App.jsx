@@ -10,6 +10,7 @@ import RecentIPs from './components/RecentIPs'
 import RequestLogs from './components/RequestLogs'
 import ActionsPanel from './components/ActionsPanel'
 import Footer from './components/Footer'
+import Snackbar from './components/Snackbar'
 import { fetchStats, fetchLogs, clearLeaderboardAPI, clearLogsAPI } from './components/api'
 
 export default function App() {
@@ -18,12 +19,22 @@ export default function App() {
   const [error, setError] = useState('')
   const [stats, setStats] = useState(null)
   const [logs, setLogs] = useState([])
-  const [actionMsg, setActionMsg] = useState('')
+  const [notif, setNotif] = useState(null)
+  const notifTimer = useRef(null)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(null)
   const [connected, setConnected] = useState(false)
   const intervalRef = useRef(null)
   const fetchingRef = useRef(false)
+
+  function showNotif(message, type) {
+    if (notifTimer.current) clearTimeout(notifTimer.current)
+    setNotif({ message, type })
+    notifTimer.current = setTimeout(() => {
+      setNotif(null)
+      notifTimer.current = null
+    }, 2500)
+  }
 
   const fetchData = useCallback(async (b, t) => {
     if (fetchingRef.current) return
@@ -121,35 +132,29 @@ export default function App() {
 
         <ActionsPanel
           onClearLeaderboard={async () => {
-            setActionMsg('')
             try {
               await clearLeaderboardAPI(base, token)
-              setActionMsg('leaderboard cleared')
+              showNotif('leaderboard cleared', 'success')
               await fetchData(base, token)
             } catch {
-              setActionMsg('failed')
+              showNotif('failed to clear leaderboard', 'error')
             }
           }}
           onClearLogs={async () => {
-            setActionMsg('')
             try {
               await clearLogsAPI(base, token)
-              setActionMsg('logs cleared')
+              showNotif('logs cleared', 'success')
               await fetchData(base, token)
             } catch {
-              setActionMsg('failed')
+              showNotif('failed to clear logs', 'error')
             }
           }}
         />
       </div>
 
-      {actionMsg && (
-        <p className={actionMsg === 'failed' ? 'error action-msg' : 'success action-msg'}>
-          {actionMsg}
-        </p>
-      )}
-
       <RequestLogs logs={logs} />
+
+      {notif && <Snackbar message={notif.message} type={notif.type} />}
 
       <Footer />
     </div>
