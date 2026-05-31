@@ -62,44 +62,37 @@ export default function App() {
 
   const place = useCallback((r, c) => {
     if (winner || draw) return
-    let finalWinner = null
-    let isDraw = false
-    let wCells = null
-    setBoard(prev => {
-      if (prev[r][c] !== EMPTY) return prev
-      const next = prev.map(row => [...row])
-      next[r][c] = turn
-      wCells = checkWin(next, turn, winLen)
-      if (wCells) {
-        finalWinner = turn
-        return next
-      }
-      if (isFull(next)) {
-        isDraw = true
-        return next
-      }
-      setTurn(turn === P1 ? P2 : P1)
-      setMoveCount(m => m + 1)
-      return next
-    })
-    sound.place()
-    if (finalWinner) {
-      setWinCells(wCells)
-      setWinner(finalWinner)
-      sound.win()
+    const cur = boardRef.current
+    if (cur[r][c] !== EMPTY) return
+    const next = cur.map(row => [...row])
+    next[r][c] = turn
+    const wc = checkWin(next, turn, winLen)
+    if (wc) {
+      setBoard(next)
+      setWinCells(wc)
+      setWinner(turn)
       setShowConfetti(true)
       setScore(s => ({
-        p1: s.p1 + (finalWinner === P1 ? 1 : 0),
-        p2: s.p2 + (finalWinner === P2 ? 1 : 0),
+        p1: s.p1 + (turn === P1 ? 1 : 0),
+        p2: s.p2 + (turn === P2 ? 1 : 0),
         draws: s.draws,
       }))
+      sound.win()
       setTimeout(() => setShowResult(true), 600)
-    } else if (isDraw) {
-      setDraw(true)
-      sound.draw()
-      setScore(s => ({ ...s, draws: s.draws + 1 }))
-      setTimeout(() => setShowResult(true), 600)
+      return
     }
+    if (isFull(next)) {
+      setBoard(next)
+      setDraw(true)
+      setScore(s => ({ ...s, draws: s.draws + 1 }))
+      sound.draw()
+      setTimeout(() => setShowResult(true), 600)
+      return
+    }
+    setBoard(next)
+    setTurn(turn === P1 ? P2 : P1)
+    setMoveCount(m => m + 1)
+    sound.place()
   }, [turn, winner, draw, winLen, sound])
 
   useEffect(() => {
@@ -245,7 +238,7 @@ export default function App() {
       {showResult && (
         <ResultModal
           label={resultLabel}
-          showSubmit={winner !== 0 && !(winner === P2 && mode === 'ai')}
+          showSubmit={!draw && winner !== 0 && !(winner === P2 && mode === 'ai')}
           name={winner === P1 ? name : name2}
           onNameChange={winner === P1 ? setName : setName2}
           onSubmit={handleSubmit}
