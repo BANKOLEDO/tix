@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/json"
 	"log"
@@ -14,6 +15,8 @@ var statsStore *StatsStore
 var adminSecret string
 
 func main() {
+	loadEnv()
+
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
 		dbPath = "tix.db"
@@ -302,6 +305,30 @@ func handleAdmin(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		jsonErr(w, "unknown admin action", 404)
+	}
+}
+
+func loadEnv() {
+	f, err := os.Open(".env")
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		line := strings.TrimSpace(s.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		val := strings.TrimSpace(parts[1])
+		if key != "" && os.Getenv(key) == "" {
+			os.Setenv(key, val)
+		}
 	}
 }
 
