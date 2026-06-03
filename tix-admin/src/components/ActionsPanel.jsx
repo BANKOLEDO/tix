@@ -8,13 +8,13 @@ export default function ActionsPanel({ onClearLeaderboard, onClearLogs }) {
 
   return (
     <div className="card">
-      <h2>actions</h2>
+      <h2>Actions</h2>
       <div className="action-buttons">
         <button className="btn btn-danger" onClick={() => setToast('leaderboard')}>
-          clear leaderboard
+          Clear Leaderboard
         </button>
         <button className="btn btn-danger" onClick={() => setToast('logs')}>
-          clear logs
+          Clear Logs
         </button>
       </div>
 
